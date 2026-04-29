@@ -1,9 +1,12 @@
 ﻿$arrUserObjects = @()
 $Rundate = Get-Date -Format "dd-MM-yyyy"
 $DocumentsPath = [Environment]::GetFolderPath("MyDocuments")
-$path = $DocumentsPath + "\Company Car Drivers " + $Rundate + ".csv"
 
 $GroupName = Read-Host -Prompt "Please enter the group you wish to query: (wrap it in 'single quotes' :))"
+
+$path = $DocumentsPath + "\"+GroupName + $Rundate + ".csv"
+
+
 
 $GroupName = $GroupName.Replace("'","")
 
