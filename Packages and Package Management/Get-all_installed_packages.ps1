@@ -1,25 +1,50 @@
-﻿function Get-AllPackages {
+﻿# Force UTF-8 encoding for all external commands
+$OutputEncoding = [Console]::OutputEncoding = [Text.Encoding]::UTF8
+
+function Get-AllPackages {
     $results = @()
 
-    # WinGet
     if (Get-Command winget -ErrorAction SilentlyContinue) {
         try {
-            $raw = winget list --accept-source-agreements 2>$null |
-                   Select-String '^\S'
-            # Skip header lines (no version column structure)
             $wingetLines = winget list --accept-source-agreements --disable-interactivity 2>$null
-            $dataStart = ($wingetLines | Select-String '^-+').LineNumber
-            if ($dataStart) {
-                $wingetLines | Select-Object -Skip $dataStart | ForEach-Object {
-                    $parts = $_ -split '\s{2,}'
-                    if ($parts.Count -ge 2) {
-                        $results += [PSCustomObject]@{
-                            Name        = $parts[0].Trim()
-                            Id          = if ($parts.Count -ge 2) { $parts[1].Trim() } else { '' }
-                            Version     = if ($parts.Count -ge 3) { $parts[2].Trim() } else { '' }
-                            Source      = if ($parts.Count -ge 4) { $parts[3].Trim() } else { 'winget' }
-                            ManagerName = 'WinGet'
-                        }
+
+            # Find FIRST header and separator by content
+            $headerIdx = -1
+            $sepIdx    = -1
+            for ($i = 0; $i -lt $wingetLines.Count; $i++) {
+                if ($headerIdx -lt 0 -and $wingetLines[$i] -match '^\s*Name\s+Id\s+Version') {
+                    $headerIdx = $i
+                }
+                if ($headerIdx -ge 0 -and $sepIdx -lt 0 -and $wingetLines[$i] -match '^-{10,}') {
+                    $sepIdx = $i
+                    break  # stop at first separator after header
+                }
+            }
+
+            if ($headerIdx -ge 0 -and $sepIdx -ge 0) {
+                $header = $wingetLines[$headerIdx]
+
+                $colName    = $header.IndexOf('Name')
+                $colId      = $header.IndexOf('Id')
+                $colVersion = $header.IndexOf('Version')
+                $colSource  = $header.IndexOf('Source')
+
+                $wingetLines | Select-Object -Skip ($sepIdx + 1) | ForEach-Object {
+                    $line = $_
+                    if ($line.Trim() -eq '' -or $line -match '^-{10,}' -or $line -match '^\s*Name\s+Id') { return }
+
+                    function Get-Col($start, $end) {
+                        if ($start -lt 0 -or $start -ge $line.Length) { return '' }
+                        $len = if ($end -gt 0 -and $end -le $line.Length) { $end - $start } else { $line.Length - $start }
+                        $line.Substring($start, [Math]::Max(0, $len)).Trim()
+                    }
+
+                    $results += [PSCustomObject]@{
+                        Name        = Get-Col $colName    $colId
+                        Id          = Get-Col $colId      $colVersion
+                        Version     = Get-Col $colVersion $colSource
+                        Source      = if ($colSource -gt 0) { Get-Col $colSource -1 } else { 'ARP' }
+                        ManagerName = 'WinGet'
                     }
                 }
             }
@@ -66,10 +91,10 @@
     Get-Module -ListAvailable | Select-Object Name, Version, ModuleBase |
         Sort-Object Name, Version -Unique | ForEach-Object {
             $source = switch -Wildcard ($_.ModuleBase) {
-                '*PSGallery*'                             { 'PSGallery' }
-                '*\WindowsPowerShell\Modules*'            { 'WindowsPowerShell' }
-                '*\PowerShell\Modules*'                   { 'PowerShell' }
-                default                                   { 'System/Other' }
+                '*PSGallery*'                  { 'PSGallery' }
+                '*\WindowsPowerShell\Modules*' { 'WindowsPowerShell' }
+                '*\PowerShell\Modules*'        { 'PowerShell' }
+                default                        { 'System/Other' }
             }
             $results += [PSCustomObject]@{
                 Name        = $_.Name
@@ -114,7 +139,7 @@
         } catch {}
     }
 
-    # dotnet tools (global) 
+    # dotnet tools (global)
     if (Get-Command dotnet -ErrorAction SilentlyContinue) {
         try {
             dotnet tool list -g 2>$null | Select-Object -Skip 2 | ForEach-Object {
@@ -132,10 +157,9 @@
         } catch {}
     }
 
-    # Cargo (Rust) 
+    # Cargo (Rust)
     if (Get-Command cargo -ErrorAction SilentlyContinue) {
         try {
-            # cargo install --list gives "pkg v1.2.3:" lines
             cargo install --list 2>$null | Where-Object { $_ -match '^(\S+) v([\d.]+)' } |
                 ForEach-Object {
                     $m = [regex]::Match($_, '^(\S+) v([\d.]+)')
@@ -150,16 +174,32 @@
         } catch {}
     }
 
+    # git (heuristic: PATH entries inside git repos - **Vomits**)
+    $env:PATH -split ';' | Where-Object { $_ -and (Test-Path $_) } | ForEach-Object {
+        $dir = $_
+        $gitDir = Join-Path (Split-Path $dir -Parent) '.git'
+        if (Test-Path $gitDir) {
+            $repoRoot = Split-Path $dir -Parent
+            $remote  = git -C $repoRoot remote get-url origin 2>$null
+            $tag     = git -C $repoRoot describe --tags 2>$null
+            $results += [PSCustomObject]@{
+                Name        = Split-Path $dir -Leaf
+                Id          = $remote
+                Version     = if ($tag) { $tag } else { 'unknown' }
+                Source      = $remote
+                ManagerName = 'git'
+            }
+        }
+    }
+
     return $results
 }
 
 # Output
 $packages = Get-AllPackages
 
-# Display in table
 $packages | Format-Table -AutoSize -Property ManagerName, Name, Id, Version, Source
 
-# export to CSV
-$packages | Export-Csv -Path "$env:USERPROFILE\Desktop\installed_packages.csv" -NoTypeInformation
+$packages | Export-Csv -Path "$env:USERPROFILE\Desktop\installed_packages.csv" -NoTypeInformation -Encoding UTF8
 
-Write-Host "`nTotal: $($packages.Count) packages across $( ($packages | Select-Object -ExpandProperty ManagerName -Unique).Count ) managers"
+Write-Host "`nTotal: $($packages.Count) packages across $(($packages | Select-Object -ExpandProperty ManagerName -Unique).Count) managers"
