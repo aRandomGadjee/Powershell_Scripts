@@ -159,7 +159,7 @@ $packages = Get-AllPackages
 # Display in table
 $packages | Format-Table -AutoSize -Property ManagerName, Name, Id, Version, Source
 
-# Optional: export to CSV
-# $packages | Export-Csv -Path "$env:USERPROFILE\Desktop\installed_packages.csv" -NoTypeInformation
+# export to CSV
+$packages | Export-Csv -Path "$env:USERPROFILE\Desktop\installed_packages.csv" -NoTypeInformation
 
 Write-Host "`nTotal: $($packages.Count) packages across $( ($packages | Select-Object -ExpandProperty ManagerName -Unique).Count ) managers"
