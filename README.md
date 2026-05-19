@@ -45,6 +45,26 @@ ___
 &nbsp;**Inputs**
  - NTUsername
 ___
+### Packages and Package Management
+#### Get-all_installed_packages.ps1
+&nbsp;**Description**
+&nbsp;&nbsp;Gets all installed packages (properties: ManagerName, Name, Id, Version, Source) installed on your machine. This then saves the output as a csv on your desktop.
+
+&nbsp;&nbsp;Currently, the following package managers are supported
+- Nuget
+- Winget
+- Pip (Python)
+- Cargo (Rust)
+- Dotnet (Microsoft dotnet)
+- Scoop
+- Powershell
+- Npm (Node: Global)
+- Chocolatey
+
+#### Todo: 
+Add git packages!
+Currently, I can only get a vague list heuristically by ckecking paths for tools... not reliable.
+___
 ### Snippets
 #### Spinner and PSJobs example.ps1
 &nbsp;**Description**
