@@ -200,6 +200,10 @@ $packages = Get-AllPackages
 
 $packages | Format-Table -AutoSize -Property ManagerName, Name, Id, Version, Source
 
-$packages | Export-Csv -Path "$env:USERPROFILE\Desktop\installed_packages.csv" -NoTypeInformation -Encoding UTF8
+$savepath = "`Desktop\$($env:COMPUTERNAME)_installed_packages_($((Get-Date).ToString("dd-MM-yyyy"))).csv"
+
+$packages | Export-Csv -Path "$env:USERPROFILE\$($savepath)" -NoTypeInformation -Encoding UTF8
 
 Write-Host "`nTotal: $($packages.Count) packages across $(($packages | Select-Object -ExpandProperty ManagerName -Unique).Count) managers"
+
+Write-Host "`File saved to path: $($savepath)"
