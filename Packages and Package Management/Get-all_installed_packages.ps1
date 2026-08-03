@@ -1,5 +1,4 @@
-
- # Force UTF-8 encoding for all external commands
+## Force UTF-8 encoding for all external commands
 $OutputEncoding = [Console]::OutputEncoding = [Text.Encoding]::UTF8
 
 function Get-AllPackages {
