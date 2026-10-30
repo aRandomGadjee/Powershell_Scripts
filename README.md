@@ -84,3 +84,9 @@ ___
  - Username
  - Display Name
  - Password
+
+<div align="center">
+  <a href="https://www.buymeacoffee.com/aRandomGadjee">
+    <img src="https://img.shields.io/badge/☕_Buy_me_a_coffee-BD5FFF?style=for-the-badge&logoColor=white" alt="Buy Me a Coffee"/>
+  </a>
+</div>
